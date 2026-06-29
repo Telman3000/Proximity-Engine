@@ -1,0 +1,11 @@
+# Generated data and experiment outputs (regenerate via the CLI)
+artifacts/
+outputs/
+
+# Process journal — shared manually, never pushed to GitHub
+мысли/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

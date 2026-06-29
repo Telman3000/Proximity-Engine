@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------------------
+# Default experiment config for the DLS vector-search engine (CPU-only).
+# Everything is parametrised here. Override on the CLI with --set key=value.
+# ---------------------------------------------------------------------------
+
+seed: 42
+
+paths:
+  root: "."              # relative to the vector_engine package dir
+  artifacts: "artifacts" # corpus, embeddings cache, indexes
+  outputs: "outputs"     # metrics json, plots, logs
+  # Optional: real VLM-JSON scenes to ingest as "anchor" records.
+  # Leave empty to skip real ingestion (synthetic-only run).
+  real_scenes_dir: "../bp_repo/backend/data/scenes"
+
+corpus:
+  target_size: 20000     # total records; bump to 500000 for the full run
+  synthetic_fraction: 1.0  # 0..1 share filled by synthetic (rest = real, capped by availability)
+  # Multiplicity per relevance-key (controls how many records share a ground-truth key)
+  key_multiplicity_min: 2
+  key_multiplicity_max: 12
+
+queries:
+  n_queries: 500         # evaluation queries (each maps to a known relevant set)
+  paraphrase_distinct: true  # render queries with templates different from records
+
+embed:
+  # tfidf-svd: pure sklearn, no native ML DLLs -> robust default on this machine
+  #            (Store Python breaks torch & onnxruntime).
+  # fastembed / sentence-transformers: neural backends (use when DLLs load).
+  backend: "tfidf-svd"
+  model: "BAAI/bge-small-en-v1.5"   # used only by neural backends
+  batch_size: 256
+  normalize: true        # L2-normalise -> inner product == cosine
+  tfidf:
+    max_features: 50000
+    ngram_max: 2
+    dim: 256             # TruncatedSVD output dimension
+  dim_reduction:
+    method: "none"       # none | pca (applied to neural backends only)
+    dim: 128             # used only when method == pca
+
+index:
+  type: "flat"           # flat | hnsw | ivfpq | opq
+  metric: "ip"           # ip (cosine on normalised) | l2
+  hnsw:
+    M: 32
+    ef_construction: 200
+    ef_search: 64
+  ivfpq:
+    nlist: 256           # number of IVF cells
+    m: 32                # PQ sub-quantisers (must divide dim)
+    nbits: 8             # bits per sub-quantiser
+    nprobe: 16
+  opq:
+    nlist: 256
+    m: 32
+    nbits: 8
+    nprobe: 16
+
+search:
+  top_k: 10
+  cascade:
+    enabled: false
+    coarse_k: 100        # candidates from ANN before rerank
+    rerank: "exact"      # exact (full-precision cosine) | none
+
+eval:
+  ks: [1, 5, 10]
+  bootstrap:
+    enabled: true
+    n_resamples: 1000
+    ci: 0.95

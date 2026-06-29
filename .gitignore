@@ -1,0 +1,24 @@
+# Personal / planning files — shared manually, not pushed to GitHub
+DLS_Project_Plan.pdf
+make_plan_pdf.py
+Project Guidlines.pdf
+
+# Cloned research project (separate origin — never push from here)
+bp_repo/
+
+# Process journal — shared manually
+vector_engine/мысли/
+
+# Generated data and experiment outputs (regenerate via the CLI)
+vector_engine/artifacts/
+vector_engine/outputs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

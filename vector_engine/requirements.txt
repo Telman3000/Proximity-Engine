@@ -1,0 +1,15 @@
+# Core (CPU-only, no torch/onnxruntime required for the default tfidf-svd backend)
+numpy
+pandas
+pyarrow
+pyyaml
+scikit-learn
+joblib
+faiss-cpu
+matplotlib
+tqdm
+psutil            # optional: process RAM reporting
+
+# Optional neural embedding backends (enable when native DLLs load on your box):
+#   fastembed            # onnxruntime, no torch
+#   sentence-transformers  # torch backend
