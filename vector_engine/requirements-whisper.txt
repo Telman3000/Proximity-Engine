@@ -1,0 +1,3 @@
+# Optional: Whisper audio-query demo (multimodal retrieval)
+openai-whisper
+gTTS

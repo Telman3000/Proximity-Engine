@@ -13,7 +13,7 @@ from ..config import Config
 from ..data import corpus as corpus_mod
 from ..represent import encoder
 from ..search import pipeline
-from ..store import faiss_store
+from ..store import build_index, apply_search_params
 from . import bootstrap, metrics
 
 
@@ -44,7 +44,8 @@ def run_experiment(cfg: Config) -> Dict:
     emb_meta = encoder.embed_corpus(cfg, df["text"].tolist())
     corpus_emb = encoder.load_corpus_embeddings(cfg)
 
-    index, index_info = faiss_store.build_index(cfg, corpus_emb)
+    index, index_info = build_index(cfg, corpus_emb, ids=ids)
+    apply_search_params(cfg, index)
 
     q_texts = [q["text"] for q in queries]
     t0 = time.perf_counter()
@@ -82,6 +83,7 @@ def run_experiment(cfg: Config) -> Dict:
         "tag": _tag(cfg),
         "config": {
             "embed": cfg.get("embed"),
+            "store": {"backend": cfg.get("store.backend", "faiss")},
             "index": {"type": cfg.get("index.type"), "metric": cfg.get("index.metric")},
             "search": cfg.get("search"),
             "corpus_size": int(len(df)),

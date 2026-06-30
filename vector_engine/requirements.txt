@@ -9,7 +9,11 @@ faiss-cpu
 matplotlib
 tqdm
 psutil            # optional: process RAM reporting
+qdrant-client     # local on-disk Qdrant for store ablation
 
 # Optional neural embedding backends (enable when native DLLs load on your box):
 #   fastembed            # onnxruntime, no torch
 #   sentence-transformers  # torch backend
+
+# Optional Whisper multimodal queries:
+#   pip install -r vector_engine/requirements-whisper.txt

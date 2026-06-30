@@ -12,7 +12,7 @@ from typing import List, Tuple
 import numpy as np
 
 from ..config import Config
-from ..store import faiss_store
+from ..store import search as store_search
 
 
 def run_queries(
@@ -35,7 +35,7 @@ def run_queries(
         q = query_emb[i:i + 1]
         t0 = time.perf_counter()
         if cascade:
-            _, I = faiss_store.search(index, q, coarse_k)
+            _, I = store_search(cfg, index, q, coarse_k)
             cand = I[0]
             cand = cand[cand >= 0]
             if rerank == "exact" and corpus_emb is not None and cand.size > 0:
@@ -45,7 +45,7 @@ def run_queries(
             else:
                 top_pos = cand[:top_k]
         else:
-            _, I = faiss_store.search(index, q, top_k)
+            _, I = store_search(cfg, index, q, top_k)
             top_pos = I[0]
             top_pos = top_pos[top_pos >= 0]
         latencies[i] = (time.perf_counter() - t0) * 1000.0

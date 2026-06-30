@@ -97,6 +97,16 @@ def _index_size_bytes(index: faiss.Index) -> int:
             pass
 
 
+def apply_search_params(cfg: Config, index: faiss.Index) -> None:
+    itype = cfg.get("index.type", "flat")
+    if itype == "hnsw" and hasattr(index, "hnsw"):
+        index.hnsw.efSearch = int(cfg.get("index.hnsw.ef_search", 64))
+    elif itype == "ivfpq":
+        index.nprobe = int(cfg.get("index.ivfpq.nprobe", 16))
+    elif itype == "opq":
+        faiss.extract_index_ivf(index).nprobe = int(cfg.get("index.opq.nprobe", 16))
+
+
 def search(index: faiss.Index, queries: np.ndarray, k: int):
     queries = np.ascontiguousarray(queries, dtype=np.float32)
     scores, idx = index.search(queries, k)

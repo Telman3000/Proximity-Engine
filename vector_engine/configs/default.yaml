@@ -58,6 +58,39 @@ index:
     nbits: 8
     nprobe: 16
 
+store:
+  backend: "faiss"       # faiss | qdrant
+
+qdrant:
+  path: "artifacts/qdrant"
+  collection: "corpus"
+  upload_batch: 512
+  hnsw:
+    m: 32
+    ef_construct: 200
+    full_scan_threshold: 10000
+  quantization:
+    scalar_type: "int8"  # int8 | float16
+  search:
+    exact_rerank: false
+
+sweeps:
+  pq:
+    m: [8, 16, 32, 64]
+    nbits: [4, 6, 8]
+  hnsw:
+    M: [16, 32, 64]
+    ef_search: [16, 32, 64, 128]
+  ivf:
+    nprobe: [1, 4, 8, 16, 32, 64]
+
+whisper:
+  model: "base"
+  sample_queries: 5
+
+analyze:
+  sample: 20000
+
 search:
   top_k: 10
   cascade:

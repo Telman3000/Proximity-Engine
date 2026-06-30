@@ -35,10 +35,12 @@ def _row(name: str, res: Dict) -> Dict:
         return d.get("mean"), d.get("lo"), d.get("hi")
 
     r10 = cell("recall@10")
+    search_cfg = res["config"].get("search") or {}
+    cascade_cfg = search_cfg.get("cascade") or {}
     row = {
         "name": name,
         "index_type": res["config"]["index"]["type"],
-        "cascade": res["config"]["search"]["cascade"]["enabled"],
+        "cascade": cascade_cfg.get("enabled", False),
         "bits_per_vector": ii["bits_per_vector"],
         "index_size_mb": round(ii["index_size_bytes"] / 1e6, 3),
         "build_seconds": ii["build_seconds"],

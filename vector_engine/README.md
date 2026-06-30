@@ -1,98 +1,105 @@
-# DLS Vector-Search Engine
+# DLS Vector-Search Engine — Proximity-Engine
 
 Scalable, compressed semantic-retrieval engine for the DLS course project:
 **representation model → vector storage → indexing → cascaded search**, evaluated
 with **bootstrap confidence intervals**. Thematically connected to the
-`beyond-proximity` research project (it consumes the scenes' VLM-JSON object
-records as "anchor" data and serves as a proper, scalable embedding-retrieval
-baseline + storage-compression study).
+`beyond-proximity` research project.
 
-## Why this design
+## Course requirements coverage
 
-The course wants a vector-search engineering project at scale (≥50k, target
-~500k) with a focus on storage economy (fewer bits per indexed row) and rigorous
-evaluation. `beyond-proximity` deliberately avoids vector similarity search, so
-this module builds that missing arm cleanly and independently.
-
-## Environment notes (important)
-
-This machine uses **Microsoft Store Python**, whose sandbox breaks several native
-ML wheels:
-
-- `torch` and `onnxruntime` fail to load their DLLs → the neural embedding
-  backends (`sentence-transformers`, `fastembed`) do not run here.
-- `faiss` works, but its native runtime conflicts with `pandas`/`pyarrow` unless
-  **faiss is imported first** (handled automatically in `vector_engine/__init__.py`).
-
-Therefore the **default embedding backend is `tfidf-svd`** (pure scikit-learn,
-deterministic, fully CPU). It is a strong fit for this benchmark because queries
-and records share attribute words. Switch to a neural backend via config once a
-non-Store Python (or a fixed environment) is available.
+| Requirement | Implementation |
+|---|---|
+| Representation model | `represent/encoder.py` — tfidf-svd (default), fastembed, sentence-transformers |
+| Vector storage | FAISS + **Qdrant** (local on-disk) |
+| Indexing | flat, HNSW, IVF-PQ, OPQ |
+| Search algorithm | single-stage ANN + **coarse→rerank cascade** |
+| Scale ≥ 50k (target 500k) | parametric synthetic corpus (`configs/scale_500k.yaml`) |
+| Storage economy | **bits/vector** metric on every run |
+| Bootstrap CIs | recall@k, precision@k, mAP, nDCG@k |
+| Everything parametrised | YAML + `--set key=value` |
+| Optional Whisper | `whisper-demo` command |
 
 ## Install
 
-```powershell
+```bash
 pip install -r vector_engine/requirements.txt
+# optional multimodal queries:
+pip install -r vector_engine/requirements-whisper.txt
 ```
 
-## Run (from the DLS_proj root)
+## Quick start (from repo root)
 
-```powershell
-# 1) Build the corpus + evaluation queries (synthetic + real VLM-JSON anchors)
-python -m vector_engine.cli build-corpus
-
-# 2) Encode the corpus once (cached on disk for all later experiments)
-python -m vector_engine.cli embed
-
-# 3) Analyse the embedding space (PCA spectrum -> dimension shrinking)
-python -m vector_engine.cli analyze
-
-# 4) Run a single experiment
-python -m vector_engine.cli run --set index.type=ivfpq
-
-# 5) Run the full comparative study (flat / hnsw / ivfpq / ivfpq+cascade / opq)
-python -m vector_engine.cli compare
+```bash
+python3 -m vector_engine.cli build-corpus
+python3 -m vector_engine.cli embed
+python3 -m vector_engine.cli analyze
+python3 -m vector_engine.cli compare                 # FAISS index ladder + plots
 ```
 
-### Scaling up (the professor wants ~500k)
+## Full experiment suite
 
-```powershell
-python -m vector_engine.cli build-corpus --set corpus.target_size=500000
-python -m vector_engine.cli compare       --set corpus.target_size=500000
+```bash
+# Parameter sweeps (central rubric graphs)
+python3 -m vector_engine.cli sweep-pq                # bits/vector vs recall curve
+python3 -m vector_engine.cli sweep-hnsw              # HNSW Pareto latency/recall
+python3 -m vector_engine.cli sweep-ivf               # IVF nprobe Pareto
+
+# Storage ablation: FAISS vs Qdrant
+python3 -m vector_engine.cli compare-stores
+
+# Embedding ablation: tfidf-svd vs neural backends (skips if DLLs missing)
+python3 -m vector_engine.cli compare-embeddings
+
+# Optional: audio query → Whisper → same index
+python3 -m vector_engine.cli whisper-demo
+python3 -m vector_engine.cli whisper-demo --audio path/to/query.wav
 ```
 
-Everything is parametrised; override any config key with `--set key.subkey=value`.
+## Scale to 500k
 
-## Outputs
+```bash
+python3 -m vector_engine.cli build-corpus --config vector_engine/configs/scale_500k.yaml
+python3 -m vector_engine.cli embed       --config vector_engine/configs/scale_500k.yaml
+python3 -m vector_engine.cli compare     --config vector_engine/configs/scale_500k.yaml
+```
 
-- `outputs/corpus_stats.json` — corpus composition
-- `outputs/vector_analysis.{json,png}` — embedding spectrum / effective dim
-- `outputs/run_<index>.json` — per-experiment metrics (recall@k, mAP, nDCG,
-  latency p50/p95, bits/vector) with 95% CIs
-- `outputs/comparison.{csv,json}` — side-by-side comparative study
-- `outputs/compression_tradeoff.png` — bits/vector vs recall@10 (with CIs)
-- `outputs/latency_tradeoff.png` — p95 latency vs recall@10
+Fast smoke-test grid (5k records):
 
-## Iteration ladder (the comparative study)
+```bash
+python3 -m vector_engine.cli sweep-pq --config vector_engine/configs/sweeps_fast.yaml
+```
 
-| Iter | Index | Point |
-|---|---|---|
-| 1 | `flat` | exact brute force, recall ceiling |
-| 2 | `hnsw` | graph ANN, latency/recall |
-| 3 | `ivfpq` / `opq` | **quantisation — fewer bits per vector** |
-| 4 | `ivfpq + cascade` | coarse ANN → exact re-rank recovers recall |
+## Outputs (`vector_engine/outputs/`)
+
+| File | Content |
+|---|---|
+| `comparison.csv/json` | Index ladder (flat/hnsw/ivfpq/cascade/opq) |
+| `sweep_pq_curve.png` | **bits/vector vs recall@10** (with CIs) |
+| `sweep_hnsw_pareto.png` | HNSW latency vs recall |
+| `sweep_ivf_pareto.png` | IVF nprobe trade-off |
+| `store_comparison.csv` | FAISS vs Qdrant ablation |
+| `embedding_comparison.csv` | tfidf-svd vs neural backends |
+| `run_<index>.json` | Per-experiment metrics + CIs + latency |
+| `vector_analysis.png` | PCA spectrum / effective dimensionality |
+
+## Environment notes
+
+- Default backend **`tfidf-svd`** — pure scikit-learn, runs on any CPU.
+- On Windows Store Python, torch/onnxruntime may fail → use tfidf-svd or install
+  python.org CPython for neural backends.
+- **faiss is imported first** in `vector_engine/__init__.py` to avoid OpenMP
+  conflicts with pandas/pyarrow on Windows.
 
 ## Module layout
 
 ```
 vector_engine/
-  config.py            YAML config + dotted CLI overrides
-  configs/default.yaml all parameters
-  data/                synthetic generator, real VLM-JSON ingest, corpus builder
-  represent/           CPU encoder (tfidf-svd | fastembed | sentence-transformers), PCA analysis
-  store/               FAISS index construction (flat/hnsw/ivfpq/opq)
-  search/              single-stage + coarse→rerank cascade
-  eval/                metrics, bootstrap CIs, experiment runner
-  experiments/         run_all (comparative study + plots)
-  cli.py               entry point
+  config.py / configs/     YAML configs (default, sweeps_fast, scale_500k)
+  data/                    synthetic generator, real VLM-JSON ingest
+  represent/               encoder, PCA analysis, Whisper ASR
+  store/                   FAISS + Qdrant backends
+  search/                  single-stage + cascade rerank
+  eval/                    metrics, bootstrap CIs, runner
+  experiments/             compare, sweeps, store/embedding ablations
+  cli.py                   entry point
 ```

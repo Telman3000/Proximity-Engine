@@ -1,0 +1,96 @@
+# Fast sweep grid for CI / smoke tests (override with --config)
+seed: 42
+
+paths:
+  root: "."
+  artifacts: "artifacts"
+  outputs: "outputs"
+  real_scenes_dir: ""
+
+corpus:
+  target_size: 5000
+  synthetic_fraction: 1.0
+  key_multiplicity_min: 2
+  key_multiplicity_max: 12
+
+queries:
+  n_queries: 100
+  paraphrase_distinct: true
+
+embed:
+  backend: "tfidf-svd"
+  model: "BAAI/bge-small-en-v1.5"
+  batch_size: 256
+  normalize: true
+  tfidf:
+    max_features: 20000
+    ngram_max: 2
+    dim: 256
+  dim_reduction:
+    method: "none"
+    dim: 128
+
+index:
+  type: "ivfpq"
+  metric: "ip"
+  hnsw:
+    M: 16
+    ef_construction: 100
+    ef_search: 32
+  ivfpq:
+    nlist: 64
+    m: 32
+    nbits: 8
+    nprobe: 8
+  opq:
+    nlist: 64
+    m: 32
+    nbits: 8
+    nprobe: 8
+
+store:
+  backend: "faiss"
+
+qdrant:
+  path: "artifacts/qdrant"
+  collection: "corpus"
+  upload_batch: 256
+  hnsw:
+    m: 16
+    ef_construct: 100
+    full_scan_threshold: 5000
+  quantization:
+    scalar_type: "int8"
+  search:
+    exact_rerank: false
+
+sweeps:
+  pq:
+    m: [16, 32]
+    nbits: [6, 8]
+  hnsw:
+    M: [16, 32]
+    ef_search: [32, 64]
+  ivf:
+    nprobe: [4, 8, 16]
+
+search:
+  top_k: 10
+  cascade:
+    enabled: false
+    coarse_k: 100
+    rerank: "exact"
+
+whisper:
+  model: "base"
+  sample_queries: 3
+
+eval:
+  ks: [1, 5, 10]
+  bootstrap:
+    enabled: true
+    n_resamples: 200
+    ci: 0.95
+
+analyze:
+  sample: 5000
